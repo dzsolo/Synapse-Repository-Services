@@ -201,6 +201,81 @@ public class StackConfigurationImplUnitTest {
 
 	}
 
+	// Verifies a prod stack gets the prod static content CDN when no explicit base URL is configured.
+	@Test
+	public void testGetEmailImagesBaseUrlWithProdStack() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(false);
+		when(mockProperties.getProperty(StackConstants.STACK_PROPERTY_NAME)).thenReturn("prod");
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url.template")).thenReturn("https://static.%s.sagebase.org/email-images");
+
+		// Call under test
+		assertEquals("https://static.prod.sagebase.org/email-images", config.getEmailImagesBaseUrl());
+	}
+
+	// Verifies a dev stack gets the dev static content CDN when no explicit base URL is configured.
+	@Test
+	public void testGetEmailImagesBaseUrlWithDevStack() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(false);
+		when(mockProperties.getProperty(StackConstants.STACK_PROPERTY_NAME)).thenReturn("dev");
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url.template")).thenReturn("https://static.%s.sagebase.org/email-images");
+
+		// Call under test
+		assertEquals("https://static.dev.sagebase.org/email-images", config.getEmailImagesBaseUrl());
+	}
+
+	// Verifies a stack other than prod uses the dev CDN, since that is the only non-prod static content CDN.
+	@Test
+	public void testGetEmailImagesBaseUrlWithOtherStack() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(false);
+		when(mockProperties.getProperty(StackConstants.STACK_PROPERTY_NAME)).thenReturn("tst");
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url.template")).thenReturn("https://static.%s.sagebase.org/email-images");
+
+		// Call under test
+		assertEquals("https://static.dev.sagebase.org/email-images", config.getEmailImagesBaseUrl());
+	}
+
+	// Verifies an explicitly configured base URL takes precedence over the stack based template.
+	@Test
+	public void testGetEmailImagesBaseUrlWithOverride() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(true);
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url")).thenReturn("https://static.prod.sagebase.org/email-images");
+
+		// Call under test
+		assertEquals("https://static.prod.sagebase.org/email-images", config.getEmailImagesBaseUrl());
+
+		verify(mockProperties, never()).getProperty("org.sagebionetworks.email.images.base.url.template");
+	}
+
+	// Verifies trailing slashes are removed so that appending "/<folder>/<file>" never yields a double slash.
+	@Test
+	public void testGetEmailImagesBaseUrlWithTrailingSlash() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(true);
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url")).thenReturn("https://static.dev.sagebase.org/email-images//");
+
+		// Call under test
+		assertEquals("https://static.dev.sagebase.org/email-images", config.getEmailImagesBaseUrl());
+	}
+
+	// Verifies a blank override is returned as an empty string rather than failing the caller.
+	@Test
+	public void testGetEmailImagesBaseUrlWithBlankValue() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(true);
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url")).thenReturn("  ");
+
+		// Call under test
+		assertEquals("", config.getEmailImagesBaseUrl());
+	}
+
+	// Verifies an override made up only of slashes ends up as an empty string.
+	@Test
+	public void testGetEmailImagesBaseUrlWithOnlySlashes() {
+		when(mockProperties.hasProperty("org.sagebionetworks.email.images.base.url")).thenReturn(true);
+		when(mockProperties.getProperty("org.sagebionetworks.email.images.base.url")).thenReturn("//");
+
+		// Call under test
+		assertEquals("", config.getEmailImagesBaseUrl());
+	}
+
 	@Test
 	public void testGetMarkdownServiceEndpointFromTemplate() {
 		when(mockProperties.getProperty("org.sagebionetworks.markdown.service.endpoint.template")).thenReturn("https://md2html.%s.sagebase.org/md2html");

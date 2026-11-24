@@ -17,6 +17,8 @@ public class StackConfigurationImpl implements StackConfiguration {
 
 	// Package-scoped for unit tests.
 	final static String CONFIG_KEY_STS_IAM_ARN = "org.sagebionetworks.sts.iam.arn";
+	final static String EMAIL_IMAGES_BASE_URL_KEY = "org.sagebionetworks.email.images.base.url";
+	final static String EMAIL_IMAGES_BASE_URL_TEMPLATE_KEY = "org.sagebionetworks.email.images.base.url.template";
 	final static String STS_TOKEN_DURATION_SECONDS = "org.sagebionetworks.sts.duration.seconds";
 	private static final String SERVICE_AUTH_TEMPLATE = "org.sagebionetworks.%s.auth.%s";
 
@@ -1391,6 +1393,20 @@ public class StackConfigurationImpl implements StackConfiguration {
 	@Override
 	public String getCloudFrontDomainName() {
 		return configuration.getProperty("org.sagebionetworks.cloudfront.domainname");
+	}
+
+	@Override
+	public String getEmailImagesBaseUrl() {
+		String baseUrl;
+		if (configuration.hasProperty(EMAIL_IMAGES_BASE_URL_KEY)) {
+			baseUrl = configuration.getProperty(EMAIL_IMAGES_BASE_URL_KEY);
+		} else {
+			// The static content CDN only exists for dev and prod, so every non-prod stack uses the dev one.
+			String cdnEnvironment = isProductionStack() ? PROD : DEV;
+			baseUrl = String.format(configuration.getProperty(EMAIL_IMAGES_BASE_URL_TEMPLATE_KEY), cdnEnvironment);
+		}
+		// Templates append "/<folder>/<file>"; Remove trailing slash here to prevent empty path segment and broken S3 key.
+		return baseUrl.trim().replaceAll("/+$", "");
 	}
 
 	@Override

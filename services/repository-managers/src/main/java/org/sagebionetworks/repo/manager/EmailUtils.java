@@ -62,7 +62,8 @@ public class EmailUtils {
 	public static final String TEMPLATE_KEY_REASON = "#reason#";
 	public static final String TEMPLATE_KEY_CONTENT = "#content#";
 	public static final String TEMPLATE_KEY_PAGE_TITLE = "#pageTitle#";
-	
+	public static final String TEMPLATE_KEY_IMAGE_BASE_URL = "#imageBaseUrl#";
+
 	// Set of domains allowed for portals (e.g. for redirect URLs)
 	public static final Set<String> ALLOWED_PORTAL_DOMAINS = Set.of(
 		"synapse.org", "sagebase.org", "sagebionetworks.org"
@@ -133,15 +134,19 @@ public class EmailUtils {
 	}
 
 	/**
-	 * 
-	 * Reads a resource into a string
+	 * Reads a resource into a string, replacing the given field markers. The
+	 * {@link #TEMPLATE_KEY_IMAGE_BASE_URL} marker is always replaced with the base URL
+	 * of the stack's email images, so templates can reference hosted images.
 	 */
 	public static String readMailTemplate(String filename, Map<String,String> fieldValues) {
+		ValidateArgument.required(fieldValues, "fieldValues");
+		Map<String,String> fieldValuesWithImages = new HashMap<>(fieldValues);
+		fieldValuesWithImages.put(TEMPLATE_KEY_IMAGE_BASE_URL, StackConfigurationSingleton.singleton().getEmailImagesBaseUrl());
 		try {
 			InputStream is = MessageManagerImpl.class.getClassLoader().getResourceAsStream(filename);
 			if (is==null) throw new RuntimeException("Could not find file "+filename);
 			try {
-				return readMailTemplate(is, fieldValues);
+				return readMailTemplate(is, fieldValuesWithImages);
 			} finally {
 				is.close();
 			}

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.sagebionetworks.StackConfigurationSingleton;
 import org.sagebionetworks.repo.manager.team.EmailParseUtil;
 import org.sagebionetworks.repo.manager.token.TokenGenerator;
 import org.sagebionetworks.repo.model.JoinTeamSignedToken;
@@ -412,6 +413,68 @@ public class EmailUtilsTest {
 		String actual = EmailUtils.wrapEmailContent(content, "Some Title");
 		assertTrue(actual.contains(content));
 		assertFalse(actual.contains(EmailUtils.TEMPLATE_KEY_CONTENT));
+	}
+
+	// Verifies the wrapped email references the configured hosted image URLs, with no data URIs and no unreplaced placeholder.
+	@Test
+	public void testWrapEmailContentWithHostedImages() {
+		String baseUrl = StackConfigurationSingleton.singleton().getEmailImagesBaseUrl();
+		assertNotNull(baseUrl);
+		// call under test
+		String actual = EmailUtils.wrapEmailContent("<p>some content</p>", "Some Title");
+		assertFalse(actual.contains("data:image"));
+		assertFalse(actual.contains(EmailUtils.TEMPLATE_KEY_IMAGE_BASE_URL));
+		for (String image : Arrays.asList("shared/banner-background.png", "shared/logo-mark.png", "shared/logo-wordmark.png",
+				"shared/social-facebook.png", "shared/social-linkedin.png", "shared/social-x.png")) {
+			assertTrue(actual.contains(baseUrl + "/" + image), image);
+		}
+	}
+
+	// Verifies the create-account template points its image at the configured hosted URL instead of a data URI.
+	@Test
+	public void testReadMailTemplateWithCreateAccountImage() {
+		String baseUrl = StackConfigurationSingleton.singleton().getEmailImagesBaseUrl();
+		Map<String, String> fieldValues = new HashMap<>();
+		fieldValues.put(EmailUtils.TEMPLATE_KEY_WEB_LINK, "https://www.synapse.org/#!NewAccount:token");
+		// call under test
+		String actual = EmailUtils.readMailTemplate("message/CreateAccountTemplate.html", fieldValues);
+		assertTrue(actual.contains(baseUrl + "/new-account/welcome-person.png"));
+		assertFalse(actual.contains("data:image"));
+		assertFalse(actual.contains(EmailUtils.TEMPLATE_KEY_IMAGE_BASE_URL));
+	}
+
+	// Verifies the password-reset template points its image at the configured hosted URL instead of a data URI.
+	@Test
+	public void testReadMailTemplateWithPasswordResetImage() {
+		String baseUrl = StackConfigurationSingleton.singleton().getEmailImagesBaseUrl();
+		Map<String, String> fieldValues = new HashMap<>();
+		fieldValues.put(EmailUtils.TEMPLATE_KEY_WEB_LINK, "https://www.synapse.org/#!PasswordReset:token");
+		fieldValues.put(EmailUtils.TEMPLATE_KEY_USERNAME, "someUser");
+		// call under test
+		String actual = EmailUtils.readMailTemplate("message/PasswordResetTemplate.html", fieldValues);
+		assertTrue(actual.contains(baseUrl + "/password-reset/password-reset-image.png"));
+		assertFalse(actual.contains("data:image"));
+		assertFalse(actual.contains(EmailUtils.TEMPLATE_KEY_IMAGE_BASE_URL));
+	}
+
+	// Verifies injecting the image base URL is done on a copy, leaving the caller's map unchanged.
+	@Test
+	public void testReadMailTemplateDoesNotModifyFieldValues() {
+		Map<String, String> fieldValues = new HashMap<>();
+		fieldValues.put(EmailUtils.TEMPLATE_KEY_WEB_LINK, "link");
+		Map<String, String> expected = new HashMap<>(fieldValues);
+		// call under test
+		EmailUtils.readMailTemplate("message/CreateAccountTemplate.html", fieldValues);
+		assertEquals(expected, fieldValues);
+	}
+
+	// Verifies a null field-values map is rejected.
+	@Test
+	public void testReadMailTemplateWithNullFieldValues() {
+		assertThrows(IllegalArgumentException.class, () -> {
+			// call under test
+			EmailUtils.readMailTemplate("message/CreateAccountTemplate.html", null);
+		});
 	}
 
 	@Test

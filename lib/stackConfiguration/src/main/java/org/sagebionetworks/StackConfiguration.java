@@ -963,6 +963,11 @@ public interface StackConfiguration {
 	String getCloudFrontDomainName();
 
 	/**
+	 * @return The base URL (scheme and host, no trailing slash) of the CDN hosting the images embedded in emails
+	 */
+	String getEmailImagesBaseUrl();
+
+	/**
 	 * The ARN of the role to be assumed to make cross account invoke_agent calls.
 	 * @return
 	 */
